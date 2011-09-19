@@ -60,7 +60,7 @@ module Pipejump
             code, data = @session.get(element_path(id) + '.json')
             if code == 200
               key = @resource.name.to_s.split('::').last.downcase
-              @resource.new(data[key].merge(:session =>@session))
+              return @resource.new(data[key].merge(:session =>@session))
             elsif code == 404
               raise ResourceNotFound
             end            
