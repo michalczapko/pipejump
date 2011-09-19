@@ -163,22 +163,22 @@ module Pipejump
 
     # Returns a Pipejump::Collection instance of Clients
     def clients
-      Collection.new(self, Client)
+      @clients ||= Collection.new(self, Client)
     end
 
     # Returns a Pipejump::Collection instance of Sources
     def sources
-      Collection.new(self, Source)
+      @sources ||= Collection.new(self, Source)
     end
 
     # Returns a Pipejump::Collection instance of Contacts
     def contacts
-      Collection.new(self, Contact)
+      @contacts ||= Collection.new(self, Contact)
     end
 
     # Returns a Pipejump::Collection instance of Deals
     def deals
-      Collection.new(self, Deal)
+      @deals ||= Collection.new(self, Deal)
     end
 
 
