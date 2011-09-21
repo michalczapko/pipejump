@@ -30,46 +30,6 @@ module Pipejump
   #   @session.sources.each { |source| }
   class Collection
     
-    def meta; class << self; self; end; end
-    
-    def cache
-      instance_variable_set "@cached_collection", {}
-      instance_variable_set "@collection_outdated", true
-
-      meta.instance_eval do 
-        define_method "outdate_collection" do
-          instance_variable_set "collection_outdated", true
-        end
-      end
-
-      meta.class_eval %Q{
-        def cached_collection
-          if @collection_outdated
-            @collection_outdated = false
-            code, data = @session.get(collection_path + '.json')
-            return @cached_collection = data.collect { |data|
-              key = @resource.name.to_s.split('::').last.downcase
-              @resource.new(data[key].merge(:session => @session, :prefix => @prefix))
-            }            
-          end
-          return @cached_collection
-        end
-        
-        def cached_record(id)
-          if @collection_outdated
-            code, data = @session.get(element_path(id) + '.json')
-            if code == 200
-              key = @resource.name.to_s.split('::').last.downcase
-              return @resource.new(data[key].merge(:session =>@session))
-            elsif code == 404
-              raise ResourceNotFound
-            end            
-          end
-          return @cached_collection.each{|record| record.id == id ? record : [] }
-        end        
-      }
-    end    
-    
     class << self
       # Disable methods specified as arguments
       def disable(*methods) #:nodoc:
@@ -97,7 +57,6 @@ module Pipejump
       @resource = resource
       @owner = owner
       @prefix = owner ? owner.element_path : ''
-      cache
     end
 
     # Returns a path to the collection of Resource objects
@@ -114,19 +73,25 @@ module Pipejump
     # ==== Arguments
     # * _id_ - id of Resource
     def find(id)
-      cached_record(id)
+      record = all.find{|r| r.id == id} 
+      record or raise ResourceNotFound
     end
 
     # Returns an Array of Resource objects
     def all
-      cached_collection
+      return @collection if @collection
+      code, data = @session.get(collection_path + '.json')
+      @collection = data.collect { |data|
+        key = @resource.name.to_s.split('::').last.downcase
+        @resource.new(data[key].merge(:session => @session, :prefix => @prefix))
+      } 
     end
 
     # Creates and returns a Resource object
     # ==== Arguments
     # * _attrs_ - a Hash of attributes passed to the constructor of the Resource
     def create(attrs)
-      outdate_collection
+      @collection = nil
       resource = @resource.new(attrs.merge(:session => @session, :prefix => @prefix))
       resource.save
       resource
@@ -134,6 +99,11 @@ module Pipejump
 
     def inspect
       all.inspect
+    end
+    
+    def reload
+      @collection = nil
+      all
     end
 
     ['first', 'last', 'each', 'size', 'collect', 'reject', 'inject'].each do |method|
